@@ -4,6 +4,7 @@ Creado por Saúl Code
 """
 
 import os
+import base64
 import re
 import sys
 import threading
@@ -81,13 +82,29 @@ def do_download(task_id: str, url: str, fmt: str):
             downloads[task_id]["progress"] = 98
 
     common = {
-        "outtmpl": output_template,
-        "progress_hooks": [progress_hook],
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,          # solo el video, no la lista completa
-        "retries": 5,
-    }
+    "outtmpl": output_template,
+    "progress_hooks": [progress_hook],
+    "quiet": True,
+    "no_warnings": True,
+    "noplaylist": True,
+    "retries": 5,
+}
+
+# Cookies de YouTube (configuradas mediante variable de entorno)
+cookies_b64 = os.environ.get("YOUTUBE_COOKIES_B64")
+
+if cookies_b64:
+    try:
+        cookies_path = "/tmp/youtube_cookies.txt"
+
+        with open(cookies_path, "wb") as f:
+            f.write(base64.b64decode(cookies_b64))
+
+        common["cookiefile"] = cookies_path
+        print("[OK] Cookies de YouTube cargadas")
+
+    except Exception as e:
+        print(f"[!] No se pudieron cargar las cookies: {e}")
 
     if FFMPEG_PATH:
         common["ffmpeg_location"] = FFMPEG_PATH
