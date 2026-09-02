@@ -17,40 +17,38 @@ app = Flask(__name__)
 CORS(app)
 
 # ── Detectar ffmpeg automáticamente ───────────────────────────────────────────
-FFMPEG_PATH = None  # directorio que contiene ffmpeg.exe
+FFMPEG_PATH = None
+
 
 def find_ffmpeg():
     """
-    Busca ffmpeg. Si viene de imageio-ffmpeg, el ejecutable tiene nombre largo
-    (ej: ffmpeg-win-x86_64-v7.1.exe). yt-dlp solo reconoce 'ffmpeg.exe',
-    así que lo copiamos con el nombre correcto en la carpeta del proyecto.
+    Busca FFmpeg de forma compatible con Windows y Linux/Railway.
     """
+
     global FFMPEG_PATH
     import shutil
 
-    # 1) ffmpeg ya en el PATH del sistema (nombre estándar)
+    # 1) FFmpeg instalado en el PATH del sistema
     ff = shutil.which("ffmpeg")
+
     if ff:
-        FFMPEG_PATH = str(Path(ff).parent)
-        print(f"[OK] ffmpeg en PATH del sistema: {ff}")
+        FFMPEG_PATH = ff
+        print(f"[OK] ffmpeg encontrado en el sistema: {ff}")
         return
 
-    # 2) imageio-ffmpeg: tiene el binario pero con nombre no estándar
+    # 2) FFmpeg proporcionado por imageio-ffmpeg
     try:
         import imageio_ffmpeg
-        src = Path(imageio_ffmpeg.get_ffmpeg_exe())
-        if src.exists():
-            # Copiarlo como ffmpeg.exe en la carpeta raíz del proyecto
-            dest = Path(__file__).parent / "ffmpeg.exe"
-            if not dest.exists():
-                shutil.copy2(src, dest)
-                print(f"[OK] ffmpeg copiado como ffmpeg.exe desde imageio")
-            else:
-                print(f"[OK] ffmpeg.exe ya existe en el proyecto")
-            FFMPEG_PATH = str(dest.parent)
+
+        ff = imageio_ffmpeg.get_ffmpeg_exe()
+
+        if ff and Path(ff).exists():
+            FFMPEG_PATH = ff
+            print(f"[OK] ffmpeg encontrado mediante imageio-ffmpeg: {ff}")
             return
-    except ImportError:
-        pass
+
+    except Exception as e:
+        print(f"[WARN] Error obteniendo ffmpeg desde imageio-ffmpeg: {e}")
 
     print("[WARN] ffmpeg NO encontrado — MP3 usará formato m4a, MP4 sin fusionar streams.")
 
@@ -221,8 +219,17 @@ def index():
 if __name__ == "__main__":
     print("=" * 55)
     print("  YT Downloader - Saul Code")
-    ffmpeg_info = f"[OK] {FFMPEG_PATH}" if FFMPEG_PATH else "[--] no encontrado (modo sin conversion)"
+
+    ffmpeg_info = f"[OK] {FFMPEG_PATH}" if FFMPEG_PATH else "[!] no encontrado (modo sin conversion)"
     print(f"  ffmpeg: {ffmpeg_info}")
-    print("  Servidor: http://localhost:5000")
+
+    port = int(os.environ.get("PORT", 5000))
+    print(f"  Servidor: http://0.0.0.0:{port}")
     print("=" * 55)
-    app.run(debug=False, port=5000, threaded=True)
+
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=False,
+        threaded=True
+    )
